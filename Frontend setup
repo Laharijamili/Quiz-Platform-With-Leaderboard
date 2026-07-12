@@ -1,0 +1,123 @@
+frontend/src/App.js
+
+jsx
+import React, { useState, useEffect } from 'react';
+import './App.css';
+
+function App() {
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [score, setScore] = useState(0);
+  const [quizFinished, setQuizFinished] = useState(false);
+  const [username, setUsername] = useState('');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
+
+  // Fetch Questions & Leaderboard data
+  useEffect(() => {
+    fetch('http://localhost:5000/api/questions')
+      .then(res => res.json())
+      .then(data => setQuestions(data));
+    
+    fetchLeaderboard();
+  }, []);
+
+  const fetchLeaderboard = () => {
+    fetch('http://localhost:5000/api/leaderboard')
+      .then(res => res.json())
+      .then(data => setLeaderboard(data));
+  };
+
+  const handleAnswerSubmit = (selectedOption) => {
+    if (selectedOption === questions[currentQuestion].correctAnswer) {
+      setScore(score + 10);
+    }
+    const nextQuestion = currentQuestion + 1;
+    if (nextQuestion < questions.length) {
+      setCurrentQuestion(nextQuestion);
+    } else {
+      setQuizFinished(true);
+    }
+  };
+
+  const handleScoreSubmit = async (e) => {
+    e.preventDefault();
+    if (!username) return;
+    await fetch('http://localhost:5000/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, score }),
+    });
+    setScoreSubmitted(true);
+    fetchLeaderboard();
+  };
+
+  return (
+    <div className="app-container">
+      <h1>🏆 Quiz Platform & Leaderboard</h1>
+      
+      {!quizFinished && questions.length > 0 && (
+        <div className="card">
+          <h2>Question {currentQuestion + 1}/{questions.length}</h2>
+          <p className="question">{questions[currentQuestion].questionText}</p>
+          <div className="options">
+            {questions[currentQuestion].options.map((option, idx) => (
+              <button key={idx} onClick={() => handleAnswerSubmit(option)}>{option}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {quizFinished && (
+        <div className="card">
+          <h2>Quiz Finished! Your Score: {score}</h2>
+          {!scoreSubmitted ? (
+            <form onSubmit={handleScoreSubmit}>
+              <input 
+                type="text" 
+                placeholder="Enter Username" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                required 
+              />
+              <button type="submit">Submit to Leaderboard</button>
+            </form>
+          ) : (
+            <p className="success-text">Score Submitted Successfully!</p>
+          )}
+        </div>
+      )}
+
+      <div className="card leaderboard">
+        <h2>🔥 Live Leaderboard Top 10</h2>
+        <ul>
+          {leaderboard.map((user, idx) => (
+            <li key={idx}>
+              <span>{idx + 1}. {user.username}</span>
+              <strong>{user.score} pts</strong>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+
+
+frontend/src/App.css
+body { font-family: Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
+.app-container { max-width: 600px; margin: 0 auto; text-align: center; }
+.card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.question { font-size: 1.2rem; font-weight: bold; }
+.options button { display: block; width: 100%; margin: 10px 0; padding: 12px; font-size: 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+.options button:hover { background: #0056b3; }
+input { padding: 10px; font-size: 1rem; width: 60%; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+form button { padding: 10px 15px; font-size: 1rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+.leaderboard ul { list-style: none; padding: 0; text-align: left; }
+.leaderboard li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+.success-text { color: #28a745; font-weight: bold; }
+
+

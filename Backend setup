@@ -1,0 +1,94 @@
+//backend/models/Question.js//
+
+javascript
+const mongoose = require('mongoose');
+
+const questionSchema = new mongoose.Schema({
+    questionText: { type: String, required: true },
+    options: [{ type: String, required: true }],
+    correctAnswer: { type: String, required: true }
+});
+
+module.exports = mongoose.model('Question', questionSchema);
+
+
+//backend/models/Leaderboard.js//
+
+javascript
+const mongoose = require('mongoose');
+
+const leaderboardSchema = new mongoose.Schema({
+    username: { type: String, required: true },
+    score: { type: Number, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('Leaderboard', leaderboardSchema);
+
+
+backend/server.js
+javascript
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
+
+const Question = require('./models/Question');
+const Leaderboard = require('./models/Leaderboard');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Connect MongoDB
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("MongoDB Connected"))
+    .catch(err => console.log(err));
+
+// API: Get all quiz questions
+app.get('/api/questions', async (req, res) => {
+    try {
+        const questions = await Question.find();
+        res.json(questions);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+
+
+javascript
+// API: Seed quiz questions (Run once to populate database)
+app.post('/api/questions/seed', async (req, res) => {
+    const dummyQuestions = [
+        { questionText: "What does HTML stand for?", options: ["Hyper Text Markup Language", "High Tech Multi Language", "Hyper Link Markup Language", "Home Tool Markup Language"], correctAnswer: "Hyper Text Markup Language" },
+        { questionText: "Which language runs in a web browser?", options: ["Java", "C", "Python", "JavaScript"], correctAnswer: "JavaScript" },
+        { questionText: "What does CSS stand for?", options: ["Creative Style Sheets", "Cascading Style Sheets", "Computer Style Sheets", "Colorful Style Sheets"], correctAnswer: "Cascading Style Sheets" }
+    ];
+    await Question.deleteMany();
+    await Question.insertMany(dummyQuestions);
+    res.json({ message: "Database Seeded Successfully!" });
+});
+
+// API: Submit a score to leaderboard
+app.post('/api/leaderboard', async (req, res) => {
+    try {
+        const { username, score } = req.body;
+        const entry = new Leaderboard({ username, score });
+        await entry.save();
+        res.json({ success: true, entry });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// API: Get top 10 scores
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const scores = await Leaderboard.find().sort({ score: -1 }).limit(10);
+        res.json(scores);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
